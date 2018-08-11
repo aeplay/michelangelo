@@ -1,0 +1,13 @@
+[package]
+name = "michelangelo"
+version = "0.1.0"
+authors = ["Anselm Eickhoff <anselm.eickhoff@gmail.com>"]
+[badges]
+maintenance = { status = "experimental" }
+
+[dependencies]
+itertools = "0.7.6"
+lyon_tessellation = "0.9.1"
+compact = "0.2.4"
+compact_macros = "0.1.0"
+descartes = "0.1.8"
