@@ -1,7 +1,7 @@
 [package]
 name = "michelangelo"
 description = "a work-in-process library for procedurally constructing 3D geometries"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Anselm Eickhoff <anselm.eickhoff@gmail.com>"]
 repository = "https://github.com/aeickhoff/michelangelo"
 license = "MIT"

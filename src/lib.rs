@@ -6,5 +6,7 @@ extern crate itertools;
 extern crate lyon_tessellation;
 
 mod mesh;
+mod mesh_grouper;
 
 pub use mesh::{Mesh, Vertex, Instance};
+pub use mesh_grouper::{MeshGrouper, GroupChange};
