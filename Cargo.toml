@@ -1,7 +1,7 @@
 [package]
 name = "michelangelo"
 description = "a work-in-process library for procedurally constructing 3D geometries"
-version = "0.1.3"
+version = "0.1.4"
 authors = ["Anselm Eickhoff <anselm.eickhoff@gmail.com>"]
 repository = "https://github.com/aeickhoff/michelangelo"
 license = "MIT"
@@ -13,4 +13,4 @@ itertools = "0.7.6"
 lyon_tessellation = "0.9.1"
 compact = "0.2.9"
 compact_macros = "0.1.0"
-descartes = "0.1.12"
+descartes = "0.1.13"
