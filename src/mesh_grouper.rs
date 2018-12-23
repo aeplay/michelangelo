@@ -1,4 +1,4 @@
-use mesh::Mesh;
+use crate::mesh::Mesh;
 use std::hash::Hash;
 use std::collections::{HashMap, VecDeque};
 

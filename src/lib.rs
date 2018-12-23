@@ -1,12 +1,7 @@
-extern crate descartes;
-extern crate compact;
-#[macro_use]
-extern crate compact_macros;
-extern crate itertools;
-extern crate lyon_tessellation;
-
 mod mesh;
 mod mesh_grouper;
+mod sculpt;
 
-pub use mesh::{Mesh, Vertex, Instance};
-pub use mesh_grouper::{MeshGrouper, GroupChange};
+pub use self::mesh::{Mesh, Vertex, Instance};
+pub use self::mesh_grouper::{MeshGrouper, GroupChange};
+pub use self::sculpt::{SculptLine, Surface, SpannedSurface, FlatSurface, Sculpture};

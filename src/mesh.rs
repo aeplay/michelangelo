@@ -2,6 +2,9 @@ pub use descartes::{N, P3, P2, V3, V4, M4, Iso3, Persp3, Into2d, Into3d, WithUni
 Area, LinePath, Segment};
 
 use compact::CVec;
+use compact_macros::Compact;
+use std::rc::Rc;
+use crate::sculpt::{Sculpture, SpannedSurface, SculptLine};
 
 #[derive(Copy, Clone, Debug)]
 pub struct Vertex {
@@ -139,12 +142,12 @@ impl GeometryBuilder<FillVertex> for Mesh {
         self.vertices.push(Vertex {
             position: [input.position.x, input.position.y, 0.0],
         });
-        VertexId(id as u16)
+        VertexId(id as u32)
     }
     fn add_triangle(&mut self, a: VertexId, b: VertexId, c: VertexId) {
-        self.indices.push(a.0);
-        self.indices.push(b.0);
-        self.indices.push(c.0);
+        self.indices.push(a.0 as u16);
+        self.indices.push(b.0 as u16);
+        self.indices.push(c.0 as u16);
     }
 }
 
@@ -196,44 +199,15 @@ impl Mesh {
         width_right: N,
         z: N,
     ) -> Mesh {
-        fn to_vertex(point: P2, z: N) -> Vertex {
-            Vertex {
-                position: [point.x, point.y, z],
-            }
-        }
+        path.shift_orthogonally(-width_left).and_then(|left_path|
+            path.shift_orthogonally(width_right).map(|right_path| (left_path, right_path))
+        ).map(|(left_path, right_path)| {
+            let left_line = Rc::new(SculptLine::new(left_path, z));
+            let right_line = Rc::new(SculptLine::new(right_path, z));
 
-        let left_points = path
-            .shift_orthogonally_vectors()
-            .zip(path.points.iter())
-            .map(|(shift, point)| point - width_left * shift.0);
-        let right_points = path
-            .shift_orthogonally_vectors()
-            .zip(path.points.iter())
-            .map(|(shift, point)| point + width_right * shift.0);
-
-        let vertices = left_points
-            .chain(right_points)
-            .map(|p| to_vertex(p, z))
-            .collect::<Vec<_>>();
-
-        let left_len = path.points.len();
-
-        let indices = (0..(left_len - 1))
-            .flat_map(|left_i| {
-                let left_i = left_i as u16;
-                let right_i = left_i + left_len as u16;
-
-                vec![
-                    left_i,
-                    right_i.min(vertices.len() as u16 - 1),
-                    left_i + 1,
-                    left_i + 1,
-                    right_i.min(vertices.len() as u16 - 1),
-                    (right_i + 1).min(vertices.len() as u16 - 1),
-                ]
-            })
-            .collect();
-
-        Mesh::new(vertices, indices)
+            Sculpture::new(vec![
+                SpannedSurface::new(left_line, right_line).into()
+            ]).to_mesh()
+        }).unwrap_or(Mesh::empty())
     }
 }
