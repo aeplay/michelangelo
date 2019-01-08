@@ -1,6 +1,5 @@
 use crate::mesh::{Mesh, Vertex};
-use descartes::P2;
-use descartes::{LinePath, PrimitiveArea, N};
+use descartes::{P2, N, LinePath, PrimitiveArea, Band};
 use lyon_tessellation::math::point as lyon_point;
 use lyon_tessellation::path::iterator::PathIter;
 use lyon_tessellation::path::PathEvent;
@@ -43,6 +42,14 @@ impl FlatSurface {
         let boundary = Rc::new(SculptLine {
             path: area.boundary.path().clone(),
             z,
+        });
+        FlatSurface { boundary }
+    }
+
+    pub fn from_band(path: LinePath, width_left: N, width_right: N, z: N) -> Self {
+        let boundary = Rc::new(SculptLine {
+            path: Band::new_asymmetric(path, width_left, width_right).outline().0,
+            z
         });
         FlatSurface { boundary }
     }
