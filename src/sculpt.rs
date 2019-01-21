@@ -19,6 +19,7 @@ impl SculptLine {
     }
 }
 
+#[derive(Clone)]
 pub struct SpannedSurface {
     left_line: Rc<SculptLine>,
     right_line: Rc<SculptLine>,
@@ -33,6 +34,7 @@ impl SpannedSurface {
     }
 }
 
+#[derive(Clone)]
 pub struct FlatSurface {
     boundary: Rc<SculptLine>,
 }
@@ -102,6 +104,10 @@ pub struct Sculpture(Vec<Surface>);
 impl Sculpture {
     pub fn new(surfaces: Vec<Surface>) -> Self {
         Sculpture(surfaces)
+    }
+
+    pub fn push(&mut self, surface: Surface) {
+        self.0.push(surface);
     }
 
     pub fn to_mesh(&self) -> Mesh {
