@@ -7,8 +7,8 @@ use lyon_tessellation::{FillOptions, FillTessellator};
 use std::rc::Rc;
 
 pub struct SculptLine {
-    path: LinePath,
-    z: N,
+    pub path: LinePath,
+    pub z: N,
 }
 
 impl SculptLine {
@@ -21,8 +21,8 @@ impl SculptLine {
 
 #[derive(Clone)]
 pub struct SpannedSurface {
-    left_line: Rc<SculptLine>,
-    right_line: Rc<SculptLine>,
+    pub left_line: Rc<SculptLine>,
+    pub right_line: Rc<SculptLine>,
 }
 
 impl SpannedSurface {
@@ -36,7 +36,7 @@ impl SpannedSurface {
 
 #[derive(Clone)]
 pub struct FlatSurface {
-    boundary: Rc<SculptLine>,
+    pub boundary: Rc<SculptLine>,
 }
 
 impl FlatSurface {
