@@ -30,6 +30,19 @@ impl SculptLine {
         let spanned_surface = SpannedSurface::new(line.clone(), upper_line.clone());
         Some((spanned_surface, upper_line))
     }
+
+    pub fn subdivide(&self, weights: &[N]) -> Vec<Rc<SculptLine>> {
+        let total_weight: N = weights.iter().sum();
+        let total_length = self.path.length();
+        let mut start = 0.0;
+
+        weights.iter().flat_map(|weight| {
+            let end = start + total_length * (weight / total_weight);
+            let maybe_path = self.path.subsection(start, end);
+            start = end;
+            maybe_path.map(|path| Rc::new(SculptLine::new(path, self.z)))
+        }).collect()
+    }
 }
 
 #[derive(Clone)]
@@ -80,36 +93,36 @@ impl FlatSurface {
 
 #[derive(Clone)]
 pub struct SkeletonSpine {
-    center: Rc<SculptLine>,
-    width: N,
-    boundary: Rc<SculptLine>,
-    left_length: N,
-    front_length: N,
-    right_length: N,
-    back_length: N
+    pub center: Rc<SculptLine>,
+    pub width: N,
+    pub boundary: Rc<SculptLine>,
+    pub left: Rc<SculptLine>,
+    pub front: Rc<SculptLine>,
+    pub right: Rc<SculptLine>,
+    pub back: Rc<SculptLine>
 }
 
 impl SkeletonSpine {
     pub fn new(center: Rc<SculptLine>, width: N) -> Option<SkeletonSpine> {
         let left = center.path.shift_orthogonally(-width / 2.0)?;
-        let right = center.path.shift_orthogonally(width / 2.0)?;
-        let back = LinePath::new(vec![right.points[0], left.points[0]].into())?;
+        let right = center.path.shift_orthogonally(width / 2.0)?.reverse();
+        let back = LinePath::new(vec![*right.points.last().unwrap(), left.points[0]].into())?;
         let front = LinePath::new(
                 vec![
                     *left.points.last().unwrap(),
-                    *right.points.last().unwrap(),
+                    right.points[0],
                 ]
                 .into(),
             )?;
-        let boundary = Rc::new(SculptLine::new(left.concat(&front).ok()?.concat(&right.reverse()).ok()?.concat(&back).ok()?, center.z));
+        let boundary = Rc::new(SculptLine::new(left.concat(&front).ok()?.concat(&right).ok()?.concat(&back).ok()?, center.z));
         Some(SkeletonSpine {
             width,
-            center,
             boundary,
-            left_length: left.length(),
-            front_length: front.length(),
-            right_length: right.length(),
-            back_length: back.length()
+            left: Rc::new(SculptLine::new(left, center.z)),
+            front: Rc::new(SculptLine::new(front, center.z)),
+            right: Rc::new(SculptLine::new(right, center.z)),
+            back: Rc::new(SculptLine::new(back, center.z)),
+            center
         })
     }
 
@@ -135,6 +148,12 @@ impl SkeletonSpine {
 
     pub fn roof(&self, height: N, gable_depth_front: N, gable_depth_back: N) -> (RoofSurface, GableSurface) {
         (RoofSurface{spine: self.clone(), height, gable_depth_front, gable_depth_back}, GableSurface{spine: self.clone(), height, gable_depth_front, gable_depth_back})
+    }
+
+    pub fn to_flat_surface(&self) -> FlatSurface {
+        FlatSurface {
+            boundary: self.boundary.clone()
+        }
     }
 }
 
@@ -240,7 +259,7 @@ impl Sculpture {
         for surface in self.0.iter() {
             match surface {
                 Surface::Spanned(spanned_surface) => {
-                    
+
 
                     let left_points = &spanned_surface.left_line.path.points;
                     let right_points = &spanned_surface.right_line.path.points;
@@ -300,13 +319,24 @@ impl Sculpture {
                     mesh += output;
                 },
                 Surface::Roof(roof_surface) => {
+                    //
+                    //   2 \        / 3
+                    //   B  5------4  A
+                    //   1 /        \ 0
+                    //
                     let center_path = &roof_surface.spine.center.path;
-                    let ridge_points = Some(center_path.along(roof_surface.gable_depth_back)).into_iter().chain(center_path.points[1..=(center_path.points.len() - 2)].iter().cloned()).chain(Some(center_path.along(center_path.length() - roof_surface.gable_depth_front))).collect::<Vec<_>>();
-                    let boundary_points = &roof_surface.spine.boundary.path.points;
+                    let ridge_points = Some(center_path.along(roof_surface.gable_depth_back)).into_iter()
+                        .chain(center_path.points[1..=(center_path.points.len() - 2)].iter().cloned())
+                        .chain(Some(center_path.along(center_path.length() - roof_surface.gable_depth_front))).collect::<Vec<_>>();
+                    let left_points = &roof_surface.spine.left.path.points;
+                    let right_points = &roof_surface.spine.right.path.points;
 
-                    let vertices = boundary_points.iter().map(|p| to_vertex(p, roof_surface.spine.center.z)).chain(ridge_points.iter().map(|p| to_vertex(p, roof_surface.spine.center.z + roof_surface.height))).collect();
-                    let indices = strip_indices(0, boundary_points.len() / 2, boundary_points.len(), ridge_points.len(), false).into_iter().chain(
-                        strip_indices(boundary_points.len() / 2, boundary_points.len() / 2, boundary_points.len(), ridge_points.len(), true)
+                    let vertices = left_points.iter().map(|p| to_vertex(p, roof_surface.spine.center.z))
+                        .chain(right_points.iter().rev().map(|p| to_vertex(p, roof_surface.spine.center.z)))
+                        .chain(ridge_points.iter().map(|p| to_vertex(p, roof_surface.spine.center.z + roof_surface.height))).collect();
+                    let indices = strip_indices(0, left_points.len(), left_points.len() + right_points.len(), ridge_points.len(), false).into_iter()
+                    .chain(
+                        strip_indices(left_points.len(), right_points.len(), left_points.len() + right_points.len(), ridge_points.len(), false)
                     ).collect();
 
                     mesh += Mesh::new(vertices, indices);
@@ -315,14 +345,15 @@ impl Sculpture {
                     let center_path = &gable_surface.spine.center.path;
                     let center_back = center_path.along(gable_surface.gable_depth_back);
                     let center_front = center_path.along(center_path.length() - gable_surface.gable_depth_front);
-                    let boundary_points = &gable_surface.spine.boundary.path.points;
+                    let left_points = &gable_surface.spine.left.path.points;
+                    let right_points = &gable_surface.spine.right.path.points;
 
                     let low_z = gable_surface.spine.center.z;
                     let high_z = low_z + gable_surface.height;
 
                     let vertices = vec![
-                        to_vertex(&boundary_points[0], low_z), to_vertex(&boundary_points[boundary_points.len() - 1], low_z), to_vertex(&center_back, high_z),
-                        to_vertex(&boundary_points[boundary_points.len() / 2 - 1], low_z), to_vertex(&boundary_points[boundary_points.len() / 2], low_z), to_vertex(&center_front, high_z)
+                        to_vertex(&left_points[0], low_z), to_vertex(&right_points[right_points.len() - 1], low_z), to_vertex(&center_back, high_z),
+                        to_vertex(&left_points[left_points.len() - 1], low_z), to_vertex(&right_points[0], low_z), to_vertex(&center_front, high_z)
                     ];
                     let indices = vec![0, 1, 2, 3, 4, 5];
 
